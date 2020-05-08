@@ -56,15 +56,6 @@ public class MainActivity extends AppCompatActivity {
 
         mNoteViewModel.mIsNew = false;
 
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
-
         //setting up spinner
         mSpinner = findViewById(R.id.course_spinner);
         ArrayAdapter<CourseInfo> courseInfoArrayAdapter = new ArrayAdapter<>(this,android.R.layout.simple_spinner_item, DataManager.getInstance().getCourses());
@@ -131,12 +122,23 @@ public class MainActivity extends AppCompatActivity {
         mNoteInfo = dataManager.getNotes().get(mNotePosition);
     }
 
+    /**
+     * creates menu in app bar
+     * associates menu with activity
+     * @param menu
+     * @return
+     */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
+    /**
+     * gets called when menu item in action bar gets selected
+     * @param item
+     * @return
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -146,9 +148,39 @@ public class MainActivity extends AppCompatActivity {
         }else if(id == R.id.action_cancel){
             mIsCancelling = true;
             finish();
+        }else if(id == R.id.action_next_note){
+            moveNext();
         }
-
         return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * shows next note without going back to NoteListActivity
+     * uses mNotePosition instance to move to next note
+     * save previous Values for the current Note and then displays it
+     * invalidates the app bar menu to check if actions are valid or not
+     */
+    private void moveNext() {
+        saveNote();
+        mNotePosition++;
+        mNoteInfo = DataManager.getInstance().getNotes().get(mNotePosition);
+        savePreviousOriginalNoteValues();
+        displayNote(mSpinner,mEditTextNoteTitle,mEditTextNoteText);
+        invalidateOptionsMenu();
+    }
+
+    /**
+     * check if appbar actions are valid or not
+     * @param menu
+     * @return
+     */
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem menuItem = menu.findItem(R.id.action_next_note);
+        int lastIndex = DataManager.getInstance().getNotes().size()-1;
+//        menuItem.setEnabled();
+        menuItem.setVisible(mNotePosition<lastIndex);
+        return super.onPrepareOptionsMenu(menu);
     }
 
     @Override
@@ -166,6 +198,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * save previous to the NoteInfo object from Custom ViewModel
+     * when user cancel the changes made ot the note
+     */
     private void fetchPreviousValues() {
         CourseInfo courseInfo = DataManager.getInstance().getCourse(mNoteViewModel.mOriginalCourseId);
         mNoteInfo.setCourse(courseInfo);
