@@ -11,4 +11,8 @@
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="title_activity_note_list">NoteListActivity</string>
     <string name="edit_note">Edit Note</string>
+    <string name="close_navigation">Close Navigation Drawer</string>
+    <string name="open_navigation">Open Navigation Drawer</string>
+    <string name="note_title">Note Title</string>
+    <string name="course_title">Course Title</string>
 </resources>
