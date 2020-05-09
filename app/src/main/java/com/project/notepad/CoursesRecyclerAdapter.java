@@ -52,7 +52,6 @@ public class CoursesRecyclerAdapter extends RecyclerView.Adapter<CoursesRecycler
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-//                    Snackbar.make(v.getRootView(),mCourseTitle.getText(),Snackbar.LENGTH_SHORT);
                     Toast.makeText(mContext, mCourseTitle.getText() , Toast.LENGTH_SHORT).show();
                 }
             });
