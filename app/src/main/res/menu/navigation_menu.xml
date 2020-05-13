@@ -5,12 +5,12 @@
             android:id="@+id/nav_notes"
             android:checkable="true"
             android:checked="true"
-            android:icon="@android:drawable/ic_menu_slideshow"
-            android:title="Notes" />
+            android:icon="@drawable/ic_event_note_black_24dp"
+            android:title="@string/notes_nav_menu" />
         <item
             android:id="@+id/nav_courses"
             android:checkable="true"
-            android:icon="@android:drawable/stat_notify_chat"
-            android:title="Courses" />
+            android:icon="@drawable/ic_book_black_24dp"
+            android:title="@string/courses_nav_menu" />
     </group>
 </menu>

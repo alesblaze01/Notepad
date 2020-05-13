@@ -1,5 +1,13 @@
 package com.project.notepad.Utility;
 
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
+import com.project.notepad.Contract.NotepadOpenHelper;
+import com.project.notepad.Contract.NotesDatabaseContract;
+import com.project.notepad.Contract.NotesDatabaseContract.CourseInfoEntry;
+import com.project.notepad.Contract.NotesDatabaseContract.NotesInfoEntry;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,18 +20,76 @@ public class DataManager {
     public static DataManager getInstance() {
         if(ourInstance == null) {
             ourInstance = new DataManager();
-            ourInstance.initializeCourses();
-            ourInstance.initializeExampleNotes();
         }
         return ourInstance;
     }
 
+    /**
+     * queries data for courses data and notes data and loads it up in ArrayList of courses and notes
+     * @param notepadOpenHelper
+     */
+    public void loadDataFromDatabase(NotepadOpenHelper notepadOpenHelper){
+        SQLiteDatabase readableDatabase = notepadOpenHelper.getReadableDatabase();
+        final String[] courseColumns = {
+                CourseInfoEntry.COLUMN_COURSE_ID,
+                CourseInfoEntry.COLUMN_COURSE_TITLE};
+
+        final Cursor courseCursor = readableDatabase.query(CourseInfoEntry.TABLE_NAME, courseColumns, null, null, null, null, CourseInfoEntry.COLUMN_COURSE_TITLE);
+        mCourses.clear();
+        loadCourseFromDatabase(courseCursor);
+
+        final String[] noteColumns = {
+                NotesInfoEntry.COLUMN_COURSE_ID,
+                NotesInfoEntry.COLUMN_NOTE_TEXT,
+                NotesInfoEntry.COLUMN_NOTE_TITLE,
+                NotesInfoEntry._ID
+        };
+
+        String orderNotesBy = NotesInfoEntry.COLUMN_COURSE_ID + "," + NotesInfoEntry.COLUMN_NOTE_TITLE+" DESC";
+        final Cursor notesCursor = readableDatabase.query(NotesInfoEntry.TABLE_NAME, noteColumns, null, null, null, null, orderNotesBy);
+        mNotes.clear();
+        loadNotesFromDatabase(notesCursor);
+    }
+
+    private void loadNotesFromDatabase(Cursor notesCursor) {
+        while (notesCursor.moveToNext()){
+            int notesTitlePos = notesCursor.getColumnIndex(NotesInfoEntry.COLUMN_NOTE_TITLE);
+            int notesTextPos = notesCursor.getColumnIndex(NotesInfoEntry.COLUMN_NOTE_TEXT);
+            int courseIdPos = notesCursor.getColumnIndex(NotesInfoEntry.COLUMN_COURSE_ID);
+            int noteRowId = notesCursor.getColumnIndex(NotesInfoEntry._ID);
+
+            String noteTitle = notesCursor.getString(notesTitlePos);
+            String noteText = notesCursor.getString(notesTextPos);
+            String courseId = notesCursor.getString(courseIdPos);
+            int noteId = notesCursor.getInt(noteRowId);
+
+            final CourseInfo course = getInstance().getCourse(courseId);
+            NoteInfo noteInfo = new NoteInfo(noteId,course,noteTitle,noteText);
+            mNotes.add(noteInfo);
+        }
+        notesCursor.close();
+    }
+
+
+    private void loadCourseFromDatabase(Cursor courseCursor) {
+        while (courseCursor.moveToNext()){
+            int courseIdPos = courseCursor.getColumnIndex(CourseInfoEntry.COLUMN_COURSE_ID);
+            int courseTitlePos = courseCursor.getColumnIndex(CourseInfoEntry.COLUMN_COURSE_TITLE);
+
+            String courseId = courseCursor.getString(courseIdPos);
+            String courseTitle = courseCursor.getString(courseTitlePos);
+            CourseInfo courseInfo = new CourseInfo(courseId,courseTitle,null);
+            mCourses.add(courseInfo);
+        }
+        courseCursor.close();
+    }
+
     public String getCurrentUserName() {
-        return "Jim Wilson";
+        return "Ales Blaze";
     }
 
     public String getCurrentUserEmail() {
-        return "jimw@jwhh.com";
+        return "ab@gmail.com";
     }
 
     public List<NoteInfo> getNotes() {
