@@ -27,8 +27,11 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:forceDarkAllowed="false"
-        android:src="@drawable/ic_add_circle_outline_black_24dp"
-        app:fabSize="auto" />
+        android:src="@drawable/ic_add_circle_black_24dp"
+        android:tint="@color/colorGreen"
+        app:backgroundTint="#FFFFFF"
+        app:fabSize="auto"
+        app:useCompatPadding="false" />
 
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

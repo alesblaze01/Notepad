@@ -1,11 +1,18 @@
 package com.project.notepad;
 
+import android.annotation.SuppressLint;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.project.notepad.Contract.NotepadOpenHelper;
 import com.project.notepad.Contract.NotesDatabaseContract.CourseInfoEntry;
 import com.project.notepad.Contract.NotesDatabaseContract.NotesInfoEntry;
@@ -18,6 +25,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.content.CursorLoader;
@@ -27,16 +36,23 @@ import android.os.PersistableBundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Spinner;
+import android.widget.Toast;
+
+import java.util.Date;
+
+import static com.project.notepad.Contract.NoteContentContract.*;
 
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final String TAG = "MainActivity";
     public static final String NOTE_ID ="com.project.notepad.NOTE_POSITION";
     public static final int ID_NOT_SET = -1;
-    public static final int LOADER_NOTES = 0;
-    public static final int LOADER_COURSES = 1;
+    public static final int SHOW_NOTE = 0;
+    private static final String NOTE_POSITION = "com.project.notepad.NOTE_POSITION";
     private NoteInfo mNoteInfo;
     private boolean mIsNewNote;
     private Spinner mSpinner;
@@ -53,6 +69,9 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     private SimpleCursorAdapter mSimpleCursorAdapter;
     private boolean mIsNoteLoaded;
     private boolean mIsCourseLoaded;
+    private Uri mRowUri;
+    private NotificationManager mNotificationManager;
+    private ProgressBar mProgressBar;
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState, @NonNull PersistableBundle outPersistentState) {
@@ -66,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
+        mProgressBar = findViewById(R.id.note_progress_bar);
         mNotepadOpenHelper = new NotepadOpenHelper(this);
         mEditTextNoteTitle = findViewById(R.id.note_title);
         mEditTextNoteText = findViewById(R.id.note_text);
@@ -84,7 +103,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         mSimpleCursorAdapter = new SimpleCursorAdapter(this,
                 android.R.layout.simple_spinner_item,
                 null,
-                new String[]{CourseInfoEntry.COLUMN_COURSE_TITLE},
+                new String[]{Courses.COURSE_TITLE},
                 new int[] {android.R.id.text1},
                 0);
         mSimpleCursorAdapter.setDropDownViewResource(android.R.layout.simple_list_item_1);
@@ -97,41 +116,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         if (!mIsNewNote)
             LoaderManager.getInstance(this).initLoader(LOADER_NOTES, null , this);
-    }
-
-    private void loadCourseDataForSpinner() {
-        final SQLiteDatabase readableDatabase = mNotepadOpenHelper.getReadableDatabase();
-        final String[] courseColumns = {
-                CourseInfoEntry.COLUMN_COURSE_ID,
-                CourseInfoEntry.COLUMN_COURSE_TITLE,
-                CourseInfoEntry._ID
-        };
-        Cursor columnsCursor = readableDatabase.query(CourseInfoEntry.TABLE_NAME ,
-                courseColumns,null,
-                null,null,
-                null,CourseInfoEntry.COLUMN_COURSE_TITLE);
-        mSimpleCursorAdapter.changeCursor(columnsCursor);
-    }
-
-    private void loadNoteDataFromDatabase() {
-        final SQLiteDatabase readableDatabase = mNotepadOpenHelper.getReadableDatabase();
-        String[] notesColumns = new String[]{
-                NotesInfoEntry.COLUMN_COURSE_ID,
-                NotesInfoEntry.COLUMN_NOTE_TITLE,
-                NotesInfoEntry.COLUMN_NOTE_TEXT,
-                NotesInfoEntry._ID
-        };
-        String selection = NotesInfoEntry._ID + " = ?";
-        String[] selectionArgs = {String.valueOf(mNoteId)};
-        mCursor = readableDatabase.query(NotesInfoEntry.TABLE_NAME,
-                notesColumns, selection,
-                selectionArgs, null,
-                null, null);
-        mNoteTitlePos = mCursor.getColumnIndex(NotesInfoEntry.COLUMN_NOTE_TITLE);
-        mNoteTextPos = mCursor.getColumnIndex(NotesInfoEntry.COLUMN_NOTE_TEXT);
-        mCourseIdPos = mCursor.getColumnIndex(NotesInfoEntry.COLUMN_COURSE_ID);
-        mCursor.moveToNext();
-        displayNote();
     }
 
     private void savePreviousOriginalNoteValues() {
@@ -188,16 +172,42 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
      * creates new Note in dataManager
      * and sets mNoteInfo field to new Note object created
      */
-    private void createNewNote() {
-        final SQLiteDatabase writableDatabase = mNotepadOpenHelper.getWritableDatabase();
 
+    private void createNewNote() {
         ContentValues values = new ContentValues();
         values.put(NotesInfoEntry.COLUMN_NOTE_TITLE,"");
         values.put(NotesInfoEntry.COLUMN_NOTE_TEXT,"");
         values.put(NotesInfoEntry.COLUMN_COURSE_ID,"");
 
-        mNoteId = (int) writableDatabase.insert(NotesInfoEntry.TABLE_NAME , null , values);
-        writableDatabase.close();
+        mRowUri = null;
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                mRowUri = getContentResolver().insert(Notes.CONTENT_URI,values);
+                if (mRowUri != null) {
+                    mNoteId = (int) ContentUris.parseId(mRowUri);
+                    Log.d(TAG, "createNewNote: mNoteId init successfully");
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this
+                                , "Note Created", Toast.LENGTH_SHORT).show();
+                    });
+                }else {
+                    mNoteId = -1;
+                    Log.d(TAG, "createNewNote: mNoteId init Failure");
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this
+                                , "Error Creating Note", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        };
+        Thread thread = new Thread(runnable);
+        thread.setPriority(Thread.MAX_PRIORITY);
+        thread.start();
+        while (thread.getState() != Thread.State.TERMINATED) {
+            mProgressBar.setVisibility(View.VISIBLE);
+        }
+        mProgressBar.setVisibility(View.INVISIBLE);
     }
 
     /**
@@ -225,14 +235,39 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             return true;
         }else if(id == R.id.action_cancel){
             mIsCancelling = true;
+            if (mIsNewNote) deleteNote();
             finish();
         }else if(id == R.id.action_next_note){
-            moveNext();
+//            moveNext();
         }else if (id == R.id.menu_item_delete_note){
+            mIsCancelling = true;
             deleteNote();
-            finish();
+        }else if (id == R.id.menu_reminder) {
+            generateNotification();
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    int duration = 1;
+    private void generateNotification() {
+        Intent intent = new Intent(this,MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra(NOTE_ID,mNoteId);
+        PendingIntent pendingIntent = PendingIntent
+                .getActivity(this, SHOW_NOTE , intent , PendingIntent.FLAG_UPDATE_CURRENT);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this,"Channel1")
+                .setContentTitle("Note Reminder : " + mEditTextNoteTitle.getText())
+                .setSmallIcon(R.drawable.ic_speaker_notes_black_24dp)
+                .setContentText(mEditTextNoteText.getText())
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(mEditTextNoteText.getText()).setBigContentTitle("Note Reminder : " + mEditTextNoteTitle.getText()))
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                ;
+        NotificationManagerCompat.from(this).notify(SHOW_NOTE,notificationBuilder.build());
     }
 
     /**
@@ -266,24 +301,46 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     protected void onPause() {
         super.onPause();
-        if (mIsCancelling){
-            if (mIsNewNote) {
-                deleteNote();
-            }
-            else{
-//                fetchPreviousValues();
-            }
-        }else {
+        if (!mIsCancelling){
             saveNote();
         }
     }
 
+    /**
+     * deletes Current selected note ,
+     * delegates call to content resolver using row uri
+     */
     private void deleteNote() {
-        final SQLiteDatabase writableDatabase = mNotepadOpenHelper.getWritableDatabase();
-        String whereClause = NotesInfoEntry._ID +"=?";
-        String[] whereArgs = new String[]{String.valueOf(mNoteId)};
-        int result = writableDatabase.delete(NotesInfoEntry.TABLE_NAME,whereClause,whereArgs);
-        Log.d(TAG, "deleteANewNote: "+ result + " Note Delete");
+        Uri notesRowUri = ContentUris.withAppendedId(Notes.CONTENT_URI,mNoteId);
+        final int[] response = {0};
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                response[0] = getContentResolver().delete(notesRowUri,null,null);
+                if (response[0] == 1) {
+                    Log.d(TAG, "deleteNote: Deletion Successful");
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this
+                                , "Note Deleted", Toast.LENGTH_SHORT).show();
+                    });
+                    mNoteId = -1;
+                }else {
+                    Log.d(TAG, "deleteNote: Deletion Unsuccessful");
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this
+                                , "Error : Deleting Note", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        };
+        Thread thread = new Thread(runnable);
+        thread.setPriority(Thread.MAX_PRIORITY);
+        thread.start();
+
+        while (thread.getState() != Thread.State.TERMINATED) {
+            mProgressBar.setVisibility(View.VISIBLE);
+        }
+        finish();
     }
 
     /**
@@ -298,15 +355,13 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     /**
-     * saves values from views to mNoteInfo object
+     * saves Note to database using ContentResolver
+     * Logs the result of updation
      */
     private void saveNote() {
-        final SQLiteDatabase writableDatabase = mNotepadOpenHelper.getWritableDatabase();
-
         int coursePosition = mSpinner.getSelectedItemPosition();
         final Cursor cursor = mSimpleCursorAdapter.getCursor();
         cursor.moveToPosition(coursePosition);
-
         int courseIdPos = cursor.getColumnIndex(NotesInfoEntry.COLUMN_COURSE_ID);
         String courseId = cursor.getString(courseIdPos);
 
@@ -314,16 +369,31 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         values.put(NotesInfoEntry.COLUMN_COURSE_ID,courseId);
         values.put(NotesInfoEntry.COLUMN_NOTE_TITLE,mEditTextNoteTitle.getText().toString());
         values.put(NotesInfoEntry.COLUMN_NOTE_TEXT,mEditTextNoteText.getText().toString());
+        Uri notesRowUri = ContentUris.withAppendedId(Notes.CONTENT_URI,mNoteId);
 
-        String whereClause = String.format("%s=?",NotesInfoEntry._ID);
-        String[] whereArgs = new String[]{String.valueOf(mNoteId)};
-
-        int updateRows = writableDatabase.update(
-                NotesInfoEntry.TABLE_NAME,values,
-                whereClause,whereArgs
-        );
-        writableDatabase.close();
-        Log.d(TAG, "saveNote: "+updateRows+" Note Updated");
+        Runnable runnable = () -> {
+            int response = getContentResolver().update(notesRowUri,values,null,null);
+            if ( response == 1 ) {
+                Log.d(TAG, "saveNote: 1 Note Updated");
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this
+                            , "Note Saved", Toast.LENGTH_SHORT).show();
+                });
+            }else {
+                Log.d(TAG, "saveNote: Note Updation Unsuccessful");
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this
+                            , "Error : Saving Note", Toast.LENGTH_SHORT).show();
+                });
+            }
+        };
+        Thread thread = new Thread(runnable);
+        thread.setPriority(Thread.MAX_PRIORITY);
+        thread.start();
+        while (thread.getState() != Thread.State.TERMINATED) {
+            mProgressBar.setVisibility(View.VISIBLE);
+        }
+        finish();
     }
 
     /**
@@ -349,7 +419,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     public Loader<Cursor> onCreateLoader(int id, @Nullable Bundle args) {
         Loader<Cursor> loader = null;
         if(id == LOADER_NOTES){
-            loader = createNodesLoader();
+            loader = createNotesLoader();
         }else if ( id == LOADER_COURSES) {
             loader = createCourseLoader();
         }
@@ -357,43 +427,29 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     private Loader<Cursor> createCourseLoader() {
-        return new CursorLoader(this){
-            @Override
-            public Cursor loadInBackground() {
-                SQLiteDatabase readableDatabase = mNotepadOpenHelper.getReadableDatabase();
-                final String[] courseColumns = {
-                        CourseInfoEntry.COLUMN_COURSE_ID,
-                        CourseInfoEntry.COLUMN_COURSE_TITLE,
-                        CourseInfoEntry._ID
-                };
-                return readableDatabase.query(
-                        CourseInfoEntry.TABLE_NAME, courseColumns,
-                        null, null, null,
-                        null, CourseInfoEntry.COLUMN_COURSE_TITLE
-                );
-            }
+        final String[] courseColumns = {
+                Courses.COURSE_ID,
+                Courses.COURSE_TITLE,
+                Courses._ID
         };
+        return new CursorLoader(
+                this,Courses.CONTENT_URI,courseColumns,
+                null,null, Courses.COURSE_TITLE
+        );
     }
 
-    private CursorLoader createNodesLoader() {
-        return new CursorLoader(this){
-            @Override
-            public Cursor loadInBackground() {
-                final SQLiteDatabase readableDatabase = mNotepadOpenHelper.getReadableDatabase();
-                final String[] noteColumns = {
-                        NotesInfoEntry.COLUMN_COURSE_ID,
-                        NotesInfoEntry.COLUMN_NOTE_TEXT,
-                        NotesInfoEntry.COLUMN_NOTE_TITLE,
-                        NotesInfoEntry._ID
-                };
-                String orderNotesBy = NotesInfoEntry.COLUMN_COURSE_ID + "," + NotesInfoEntry.COLUMN_NOTE_TITLE+" DESC";
-                return  readableDatabase.query(
-                        NotesInfoEntry.TABLE_NAME, noteColumns,
-                        NotesInfoEntry._ID+"=?", new String[]{String.valueOf(mNoteId)},
-                        null, null, orderNotesBy
-                );
-            }
+    private CursorLoader createNotesLoader() {
+        final String[] noteColumns = {
+                Notes.COURSE_ID,
+                Notes.NOTE_TEXT,
+                Notes.NOTE_TITLE,
+                Notes._ID
         };
+        Uri noteRowUri = ContentUris.withAppendedId(Notes.CONTENT_URI,mNoteId);
+        return new CursorLoader(
+                this,noteRowUri , noteColumns,
+                null, null, null
+        );
     }
 
     @Override
