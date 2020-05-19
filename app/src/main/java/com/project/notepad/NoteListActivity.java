@@ -8,6 +8,8 @@ import android.os.Bundle;
 import androidx.annotation.Nullable;
 import androidx.loader.app.LoaderManager;
 
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.project.notepad.Adpater.CoursesRecyclerAdapter;
@@ -17,6 +19,8 @@ import com.project.notepad.Contract.NoteContentContract.NotesCourseJoined;
 import com.project.notepad.Contract.NotepadOpenHelper;
 import com.project.notepad.Contract.NotesDatabaseContract.CourseInfoEntry;
 import com.project.notepad.Contract.NotesDatabaseContract.NotesInfoEntry;
+import com.project.notepad.Service.NoteBackupService;
+import com.project.notepad.Utility.UserAccount;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -36,8 +40,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
-
-import java.util.concurrent.atomic.AtomicReference;
+import android.widget.Toast;
 
 import static com.project.notepad.Contract.NoteContentContract.LOADER_COURSES;
 import static com.project.notepad.Contract.NoteContentContract.LOADER_NOTES_COURSE_JOINED;
@@ -50,7 +53,9 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     private GridLayoutManager mGridLayoutManager;
     private NotepadOpenHelper mNotepadOpenHelper;
     private NavigationView mNavigationView;
-    private SharedPreferences[] mPreferences;
+//    private SharedPreferences[] mPreferences;
+    private UserAccount mUserAccount;
+    private static final String TAG = "NoteListActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,8 +64,13 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        enableStrictMode();
-        //creates Open Helper instance
+        mNavigationView = findViewById(R.id.nav_bar);
+        mNavigationView.setNavigationItemSelectedListener(this);
+        mUserAccount = UserAccount.getInstance(this);
+        if(mUserAccount.ifPreviouslyLogin()) {
+            updateNavigationHeader();
+        }
+//        enableStrictMode();
         mNotepadOpenHelper = new NotepadOpenHelper(this);
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -68,7 +78,6 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
             public void onClick(View view) {
                 Menu navMenu = mNavigationView.getMenu();
                 if(navMenu.findItem(R.id.nav_courses).isChecked()) {
-
                 }else if (navMenu.findItem(R.id.nav_notes).isChecked()){
                     Intent intent = new Intent(NoteListActivity.this,MainActivity.class);
                     startActivity(intent);
@@ -80,10 +89,6 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         ActionBarDrawerToggle actionBarDrawerToggle = new ActionBarDrawerToggle(this,drawerLayout,toolbar,R.string.open_navigation,R.string.close_navigation);
         drawerLayout.setDrawerListener(actionBarDrawerToggle);
         actionBarDrawerToggle.syncState();
-
-        mNavigationView = findViewById(R.id.nav_bar);
-        mNavigationView.setNavigationItemSelectedListener(this);
-
         LoaderManager.getInstance(this).initLoader(LOADER_NOTES_COURSE_JOINED,null,this);
         LoaderManager.getInstance(this).initLoader(LOADER_COURSES , null , this);
 
@@ -105,38 +110,51 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
      */
     @Override
     protected void onResume() {
-        updateNavigationHeaderDisplay();
         super.onResume();
+    }
+
+    public void updateNavigationHeader() {
+        View navHeader = mNavigationView.getHeaderView(0);
+        TextView userName = navHeader.findViewById(R.id.nav_user_name);
+        TextView userEmail = navHeader.findViewById(R.id.nav_user_email_address);
+        if(mUserAccount.isSignedIn()) {
+            userName.setText(mUserAccount.getAccount().getDisplayName());
+            userEmail.setText(mUserAccount.getAccount().getEmail());
+        }else {
+            userName.setText("Not Set");
+            userEmail.setText("Not Set");
+        }
     }
 
     @Override
     protected void onRestart() {
         LoaderManager.getInstance(this).restartLoader(LOADER_NOTES_COURSE_JOINED,null,this);
+        updateNavigationHeader();
         super.onRestart();
     }
 
     private void updateNavigationHeaderDisplay() {
-        NavigationView navigationView = findViewById(R.id.nav_bar);
-        View headerView = navigationView.getHeaderView(0);
-        TextView emailPreference = headerView.findViewById(R.id.nav_user_email_address);
-        TextView namePreference = headerView.findViewById(R.id.nav_user_name);
-
-        final String[] email = {null};
-        final String[] name = {null};
-        mPreferences = new SharedPreferences[]{null};
-
-        Runnable updaterRunner = () -> {
-            if(mPreferences[0] == null)
-                mPreferences[0] = PreferenceManager.getDefaultSharedPreferences(this);
-            email[0] = mPreferences[0].getString(getString(R.string.preference_key_email_address), "");
-            name[0] = mPreferences[0].getString(getString(R.string.preference_key_user_name), "");
-        };
-        Thread thread = new Thread(updaterRunner);
-        thread.setPriority(Thread.MAX_PRIORITY);
-        thread.start();
-        while (thread.getState() != Thread.State.TERMINATED) {}
-        emailPreference.setText(email[0]);
-        namePreference.setText(name[0]);
+//        NavigationView navigationView = findViewById(R.id.nav_bar);
+//        View headerView = navigationView.getHeaderView(0);
+//        TextView emailPreference = headerView.findViewById(R.id.nav_user_email_address);
+//        TextView namePreference = headerView.findViewById(R.id.nav_user_name);
+//
+//        final String[] email = {null};
+//        final String[] name = {null};
+//        mPreferences = new SharedPreferences[]{null};
+//
+//        Runnable updaterRunner = () -> {
+//            if(mPreferences[0] == null)
+//                mPreferences[0] = PreferenceManager.getDefaultSharedPreferences(this);
+//            email[0] = mPreferences[0].getString(getString(R.string.preference_key_email_address), "");
+//            name[0] = mPreferences[0].getString(getString(R.string.preference_key_user_name), "");
+//        };
+//        Thread thread = new Thread(updaterRunner);
+//        thread.setPriority(Thread.MAX_PRIORITY);
+//        thread.start();
+//        while (thread.getState() != Thread.State.TERMINATED) {}
+//        emailPreference.setText(email[0]);
+//        namePreference.setText(name[0]);
     }
 
     @Override
@@ -153,10 +171,6 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         mRecyclerView = findViewById(R.id.list_notes);
         mLinearLayoutManager = new LinearLayoutManager(this);
         mGridLayoutManager = new GridLayoutManager(this, 2);
-//        mNoteRecyclerAdapter = new NoteRecyclerAdapter(this,getNotesCursor());
-//        mCoursesRecyclerAdapter = new CoursesRecyclerAdapter(this, getCourseCursor());
-
-//        showNotes();
     }
 
     private Loader<Cursor> getCourseCursor(){
@@ -248,9 +262,28 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
         if(id == R.id.note_list_settings){
-            startActivity(new Intent(this,SettingsActivity.class));
+        } else if (id == R.id.backup_note_menu) {
+            if(mUserAccount.isSignedIn()/*User login*/) {
+                Intent intent = new Intent(this, NoteBackupService.class);
+                startService(intent);
+            }else {
+                Toast.makeText(this, "You May Login First", Toast.LENGTH_LONG).show();
+            }
+        } else if (id == R.id.profile) {
+            Intent signInIntent = new Intent(this,UserLoginActivity.class);
+            startActivity(signInIntent);
+            updateNavigationHeader();
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+//        MenuItem signInMenu = menu.findItem(R.id.profile);
+//        if(mUserAccount != null) {
+//            signInMenu.setVisible(false);
+//        }
+        return super.onPrepareOptionsMenu(menu);
     }
 
     @NonNull

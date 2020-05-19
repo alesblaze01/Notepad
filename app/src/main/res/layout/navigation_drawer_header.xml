@@ -18,14 +18,14 @@
             android:id="@+id/nav_user_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="TextView"
+            android:text="Not Set"
             android:textAppearance="@style/TextAppearance.AppCompat.Large" />
 
         <TextView
             android:id="@+id/nav_user_email_address"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="TextView"
+            android:text="Not Set"
             android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
