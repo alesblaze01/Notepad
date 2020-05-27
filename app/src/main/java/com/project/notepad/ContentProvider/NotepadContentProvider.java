@@ -32,11 +32,14 @@ public class NotepadContentProvider extends ContentProvider {
     public static final int NOTES_COURSE_JOINED_CODE = 2;
     private static final int NOTES_ROW_CODE = 3;
 
+    public static final int COURSE_ROW_URI_CODE = 4;
+
     static {
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , Courses.PATH , COURSES_CODE);
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , Notes.PATH , NOTES_CODE);
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , NotesCourseJoined.PATH , NOTES_COURSE_JOINED_CODE);
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , Notes.PATH +"/#", NOTES_ROW_CODE);
+        sUriMatcher.addURI( NoteContentContract.AUTHORITY , Courses.PATH+"/#" , COURSE_ROW_URI_CODE);
     }
     public NotepadContentProvider() {
     }
@@ -54,6 +57,11 @@ public class NotepadContentProvider extends ContentProvider {
                 selectionArgs = new String[]{String.valueOf(rowId)};
                 response = db.delete(NotesInfoEntry.TABLE_NAME,selection,selectionArgs);
                 break;
+            case COURSE_ROW_URI_CODE :
+                long courseRowId = ContentUris.parseId(uri);
+                selection = NotesInfoEntry._ID+"=?";
+                selectionArgs = new String[]{String.valueOf(courseRowId)};
+                response = db.delete(CourseInfoEntry.TABLE_NAME,selection,selectionArgs);
             default:
                 Log.d(TAG, "delete: No Case defined for this table");
         }
@@ -79,7 +87,6 @@ public class NotepadContentProvider extends ContentProvider {
                 RowUri = ContentUris.withAppendedId(Notes.CONTENT_URI,rowId);
                 break;
             case COURSES_CODE :
-                //TODO: haven't provided a way for user to enter course
                 rowId = db.insert(CourseInfoEntry.TABLE_NAME,null,values);
                 RowUri = ContentUris.withAppendedId(Courses.CONTENT_URI,rowId);
             default:
@@ -160,10 +167,15 @@ public class NotepadContentProvider extends ContentProvider {
                 break;
             case NOTES_ROW_CODE :
                 long rowId = ContentUris.parseId(uri);
-                String whereClause=NotesInfoEntry._ID+"=?";
-                String[] whereArgs = {String.valueOf(rowId)};
-                result = db.update(NotesInfoEntry.TABLE_NAME,values,whereClause,whereArgs);
+                String noteWhere =NotesInfoEntry._ID+"=?";
+                String[] noteWhereArgs = {String.valueOf(rowId)};
+                result = db.update(NotesInfoEntry.TABLE_NAME,values,noteWhere,noteWhereArgs);
                 break;
+            case COURSE_ROW_URI_CODE:
+                long courseDbId = ContentUris.parseId(uri);
+                String courseRowWhere = CourseInfoEntry._ID+"=?";
+                String[] courseRowWhereArgs = {String.valueOf(courseDbId)};
+                result = db.update(CourseInfoEntry.TABLE_NAME , values , courseRowWhere , courseRowWhereArgs);
             default:
                 Log.d(TAG, "update: No Case for Update Content Provider");
         }

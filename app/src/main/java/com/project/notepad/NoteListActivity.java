@@ -1,15 +1,28 @@
 package com.project.notepad;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.os.StrictMode;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.loader.app.LoaderManager;
+import androidx.loader.content.CursorLoader;
+import androidx.loader.content.Loader;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.project.notepad.Adpater.CoursesRecyclerAdapter;
@@ -19,33 +32,18 @@ import com.project.notepad.Contract.NoteContentContract.NotesCourseJoined;
 import com.project.notepad.Contract.NotepadOpenHelper;
 import com.project.notepad.Contract.NotesDatabaseContract.CourseInfoEntry;
 import com.project.notepad.Contract.NotesDatabaseContract.NotesInfoEntry;
-import com.project.notepad.Service.NoteBackupService;
+import com.project.notepad.Utility.CursorUtility;
+import com.project.notepad.Utility.GeneralUtility;
 import com.project.notepad.Utility.UserAccount;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBarDrawerToggle;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.loader.content.CursorLoader;
-import androidx.loader.content.Loader;
-import androidx.preference.PreferenceManager;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
-import android.os.StrictMode;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import static com.project.notepad.Contract.NoteContentContract.LOADER_COURSES;
 import static com.project.notepad.Contract.NoteContentContract.LOADER_NOTES_COURSE_JOINED;
+import static com.project.notepad.Utility.CursorUtility.NoteListCursor.getCourseCursor;
+import static com.project.notepad.Utility.CursorUtility.NoteListCursor.getNotesCursor;
 
 public class NoteListActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, LoaderManager.LoaderCallbacks<Cursor> {
+    public static final String CHECKED_NAV_MENU_ITEM = "checkedNavMenuItem";
+
     private NoteRecyclerAdapter mNoteRecyclerAdapter;
     private LinearLayoutManager mLinearLayoutManager;
     private RecyclerView mRecyclerView;
@@ -53,9 +51,10 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     private GridLayoutManager mGridLayoutManager;
     private NotepadOpenHelper mNotepadOpenHelper;
     private NavigationView mNavigationView;
-//    private SharedPreferences[] mPreferences;
     private UserAccount mUserAccount;
     private static final String TAG = "NoteListActivity";
+    private Bundle mSavedInstanceState;
+    private int mSelectedNavMenuItemId=0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,53 +63,53 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        mNavigationView = findViewById(R.id.nav_bar);
-        mNavigationView.setNavigationItemSelectedListener(this);
+//        GeneralUtility.StrictMode.enableStrictMode();
+
+        if (savedInstanceState != null) {
+            mSavedInstanceState = savedInstanceState;
+        }else {
+            mSelectedNavMenuItemId = R.id.nav_notes;
+        }
+        initializeGlobalViews();
         mUserAccount = UserAccount.getInstance(this);
         if(mUserAccount.ifPreviouslyLogin()) {
             updateNavigationHeader();
         }
-//        enableStrictMode();
-        mNotepadOpenHelper = new NotepadOpenHelper(this);
+        setUpDrawer(toolbar);
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Menu navMenu = mNavigationView.getMenu();
                 if(navMenu.findItem(R.id.nav_courses).isChecked()) {
+                    startActivity(CourseActivity.getIntent(NoteListActivity.this));
                 }else if (navMenu.findItem(R.id.nav_notes).isChecked()){
-                    Intent intent = new Intent(NoteListActivity.this,MainActivity.class);
-                    startActivity(intent);
+                    startActivity(MainActivity.getIntent(NoteListActivity.this));
                 }
             }
         });
+        restartLoader();
+    }
 
+    private void restartLoader() {
+        LoaderManager.getInstance(this).restartLoader(LOADER_NOTES_COURSE_JOINED, null, this);
+        LoaderManager.getInstance(this).restartLoader(LOADER_COURSES, null, this);
+    }
+
+    private void setUpDrawer(Toolbar toolbar) {
         DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle actionBarDrawerToggle = new ActionBarDrawerToggle(this,drawerLayout,toolbar,R.string.open_navigation,R.string.close_navigation);
         drawerLayout.setDrawerListener(actionBarDrawerToggle);
         actionBarDrawerToggle.syncState();
-        LoaderManager.getInstance(this).initLoader(LOADER_NOTES_COURSE_JOINED,null,this);
-        LoaderManager.getInstance(this).initLoader(LOADER_COURSES , null , this);
-
-        initializeDisplayContent();
     }
 
-    private void enableStrictMode() {
-        if(BuildConfig.DEBUG) {
-            StrictMode.ThreadPolicy threadPolicy = new StrictMode.ThreadPolicy.Builder()
-                    .detectAll()
-                    .penaltyLog()
-                    .build();
-            StrictMode.setThreadPolicy(threadPolicy);
-        }
-    }
-
-    /**
-     * gets called after onStop() when activity resumes
-     */
-    @Override
-    protected void onResume() {
-        super.onResume();
+    private void initializeGlobalViews() {
+        mRecyclerView = findViewById(R.id.list_notes);
+        mLinearLayoutManager = new LinearLayoutManager(this);
+        mGridLayoutManager = new GridLayoutManager(this, 2);
+        mNotepadOpenHelper = new NotepadOpenHelper(this);
+        mNavigationView = findViewById(R.id.nav_bar);
+        mNavigationView.setNavigationItemSelectedListener(this);
     }
 
     public void updateNavigationHeader() {
@@ -127,34 +126,30 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     }
 
     @Override
-    protected void onRestart() {
-        LoaderManager.getInstance(this).restartLoader(LOADER_NOTES_COURSE_JOINED,null,this);
-        updateNavigationHeader();
-        super.onRestart();
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        outState.putInt(CHECKED_NAV_MENU_ITEM, mSelectedNavMenuItemId);
+        super.onSaveInstanceState(outState);
     }
 
-    private void updateNavigationHeaderDisplay() {
-//        NavigationView navigationView = findViewById(R.id.nav_bar);
-//        View headerView = navigationView.getHeaderView(0);
-//        TextView emailPreference = headerView.findViewById(R.id.nav_user_email_address);
-//        TextView namePreference = headerView.findViewById(R.id.nav_user_name);
-//
-//        final String[] email = {null};
-//        final String[] name = {null};
-//        mPreferences = new SharedPreferences[]{null};
-//
-//        Runnable updaterRunner = () -> {
-//            if(mPreferences[0] == null)
-//                mPreferences[0] = PreferenceManager.getDefaultSharedPreferences(this);
-//            email[0] = mPreferences[0].getString(getString(R.string.preference_key_email_address), "");
-//            name[0] = mPreferences[0].getString(getString(R.string.preference_key_user_name), "");
-//        };
-//        Thread thread = new Thread(updaterRunner);
-//        thread.setPriority(Thread.MAX_PRIORITY);
-//        thread.start();
-//        while (thread.getState() != Thread.State.TERMINATED) {}
-//        emailPreference.setText(email[0]);
-//        namePreference.setText(name[0]);
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        mSelectedNavMenuItemId = savedInstanceState.getInt(CHECKED_NAV_MENU_ITEM,0);
+        super.onRestoreInstanceState(savedInstanceState);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (mSavedInstanceState != null) {
+            mSelectedNavMenuItemId = mSavedInstanceState.getInt(CHECKED_NAV_MENU_ITEM);
+        }
+    }
+
+    @Override
+    protected void onRestart(){
+        restartLoader();
+        updateNavigationHeader();
+        super.onRestart();
     }
 
     @Override
@@ -162,39 +157,6 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         mNotepadOpenHelper.close();
         super.onDestroy();
     }
-
-    /**
-     * initialise a recycler view adds layout manager
-     * to it and associates adapter to the recycler view
-     */
-    private void initializeDisplayContent() {
-        mRecyclerView = findViewById(R.id.list_notes);
-        mLinearLayoutManager = new LinearLayoutManager(this);
-        mGridLayoutManager = new GridLayoutManager(this, 2);
-    }
-
-    private Loader<Cursor> getCourseCursor(){
-        String[] columns = new String[]{
-                CourseInfoEntry.COLUMN_COURSE_TITLE,
-        };
-        return new CursorLoader(this, Courses.CONTENT_URI ,
-                columns , null , null , Courses.COURSE_TITLE);
-    }
-
-    private Loader<Cursor> getNotesCursor() {
-        final String[] noteColumns = {
-                NotesCourseJoined.COURSE_TITLE,
-                NotesCourseJoined.NOTE_TITLE,
-                NotesCourseJoined._ID
-        };
-        String orderNotesBy = CourseInfoEntry.COLUMN_COURSE_TITLE +
-                "," + NotesInfoEntry.COLUMN_NOTE_TITLE+" DESC";
-        return new CursorLoader(
-                this, NotesCourseJoined.CONTENT_URI , noteColumns ,
-                null, null , orderNotesBy
-        );
-    }
-
     /**
      * sets course adapter and layout manager to recycler View
      */
@@ -207,7 +169,7 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
      * displays notes when notes section selected in drawer
      */
     private void showNotes() {
-        mRecyclerView.setLayoutManager(mLinearLayoutManager);
+        mRecyclerView.setLayoutManager(mGridLayoutManager);
         mRecyclerView.setAdapter(mNoteRecyclerAdapter);
         checkNavigationMenuItem(R.id.nav_notes);
     }
@@ -234,6 +196,8 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         }else if(id == R.id.nav_courses){
             displayCourse();
         }
+        mSelectedNavMenuItemId = id;
+
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
@@ -263,27 +227,10 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         int id = item.getItemId();
         if(id == R.id.note_list_settings){
         } else if (id == R.id.backup_note_menu) {
-            if(mUserAccount.isSignedIn()/*User login*/) {
-                Intent intent = new Intent(this, NoteBackupService.class);
-                startService(intent);
-            }else {
-                Toast.makeText(this, "You May Login First", Toast.LENGTH_LONG).show();
-            }
         } else if (id == R.id.profile) {
-            Intent signInIntent = new Intent(this,UserLoginActivity.class);
-            startActivity(signInIntent);
-            updateNavigationHeader();
+            startActivity(UserLoginActivity.getIntent(this));
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-//        MenuItem signInMenu = menu.findItem(R.id.profile);
-//        if(mUserAccount != null) {
-//            signInMenu.setVisible(false);
-//        }
-        return super.onPrepareOptionsMenu(menu);
     }
 
     @NonNull
@@ -291,9 +238,9 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     public Loader<Cursor> onCreateLoader(int id, @Nullable Bundle args) {
         switch (id) {
             case LOADER_NOTES_COURSE_JOINED :
-                return getNotesCursor();
+                return getNotesCursor(this);
             case LOADER_COURSES:
-                return getCourseCursor();
+                return getCourseCursor(this);
         }
         return null;
     }
@@ -306,12 +253,21 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
             case LOADER_NOTES_COURSE_JOINED :
                 mNoteCourseJoinedCursor = data;
                 mNoteRecyclerAdapter = new NoteRecyclerAdapter(this,mNoteCourseJoinedCursor);
-                showNotes();
+                checkRequestType();
                 break;
             case LOADER_COURSES :
                 mCourseCursor = data;
                 mCoursesRecyclerAdapter = new CoursesRecyclerAdapter(this,mCourseCursor);
+                checkRequestType();
                 break;
+        }
+    }
+
+    private void checkRequestType() {
+        if (mSelectedNavMenuItemId == R.id.nav_courses) {
+            displayCourse();
+        } else if (mSelectedNavMenuItemId == R.id.nav_notes) {
+            showNotes();
         }
     }
 

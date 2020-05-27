@@ -9,7 +9,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 public class UserAccount {
     private GoogleSignInAccount mAccount;
     private static UserAccount mUserAccount;
-    static Context mContext;
+    private static Context mContext;
     private UserAccount(){}
     public static UserAccount getInstance(Context context){
         if(mUserAccount == null) {

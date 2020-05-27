@@ -1,4 +1,4 @@
-package com.project.notepad.Utility;
+package com.project.notepad.Model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -81,26 +81,18 @@ public final class NoteInfo implements Parcelable {
         return getCompareKey();
     }
 
-    /**
-     * sets any special flags , we dont need any that why 0
-     * @return
-     */
     @Override
     public int describeContents() {
         return 0;
     }
 
-    /**
-     * writes data to parcel object
-     * @param dest
-     * @param flags
-     */
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeParcelable(mCourse,0);
         dest.writeString(mTitle);
         dest.writeString(mText);
     }
+
     public final static Creator<NoteInfo> CREATOR = new Creator<NoteInfo>() {
         @Override
         public NoteInfo createFromParcel(Parcel source) {

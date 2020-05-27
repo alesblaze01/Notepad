@@ -1,4 +1,4 @@
-package com.project.notepad.Utility;
+package com.project.notepad.Model;
 
 import android.os.Parcel;
 import android.os.Parcelable;

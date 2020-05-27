@@ -14,8 +14,6 @@ import com.project.notepad.Contract.NotesDatabaseContract;
 import com.project.notepad.Contract.NotesDatabaseContract.NotesInfoEntry;
 import com.project.notepad.MainActivity;
 import com.project.notepad.R;
-import com.project.notepad.Utility.NoteInfo;
-import java.util.List;
 
 public class NoteRecyclerAdapter extends RecyclerView.Adapter<NoteRecyclerAdapter.NoteViewHolder> {
     final public Context mContext;

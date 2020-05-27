@@ -2,6 +2,8 @@
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
 <!--        <item name="android:textColor">@color/colorGreen</item>-->
         <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="android:datePickerMode">spinner</item>
+        <item name="android:timePickerMode">spinner</item>
 <!--        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>-->
 <!--        <item name="colorAccent">@color/colorAccent</item>-->
     </style>

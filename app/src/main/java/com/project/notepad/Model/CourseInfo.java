@@ -1,6 +1,5 @@
-package com.project.notepad.Utility;
+package com.project.notepad.Model;
 
-import android.database.Cursor;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -72,7 +71,6 @@ public final class CourseInfo implements Parcelable {
         CourseInfo that = (CourseInfo) o;
 
         return mCourseId.equals(that.mCourseId);
-
     }
 
     @Override

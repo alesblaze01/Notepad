@@ -7,7 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
 
 import com.project.notepad.Utility.DataManager;
-import com.project.notepad.Utility.NoteInfo;
+import com.project.notepad.Model.NoteInfo;
 
 import org.junit.Rule;
 import org.junit.Test;

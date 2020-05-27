@@ -30,6 +30,7 @@ public class NoteContentContract {
         public static final String PATH = "notes_courses_joined";
         public static final Uri CONTENT_URI = Uri.withAppendedPath(BASE_URI,PATH);
     }
+
     protected interface NoteColumns{
         String NOTE_TITLE = NotesInfoEntry.COLUMN_NOTE_TITLE;
         String NOTE_TEXT = NotesInfoEntry.COLUMN_NOTE_TEXT;

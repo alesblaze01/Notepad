@@ -10,7 +10,8 @@ import com.project.notepad.Utility.DatabaseDataWorker;
 
 public class NotepadOpenHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME="notepad.db";
-    private static final Integer DATABASE_VERSION=1;
+    private static final Integer DATABASE_VERSION=2;
+
     public NotepadOpenHelper(@Nullable Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -19,14 +20,14 @@ public class NotepadOpenHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(NotesDatabaseContract.NotesInfoEntry.CREATE_TABLE);
         db.execSQL(NotesDatabaseContract.CourseInfoEntry.CREATE_TABLE);
-        createIndicies(db);
+        createIndices(db);
         
         DatabaseDataWorker databaseDataWorker = new DatabaseDataWorker(db);
         databaseDataWorker.insertCourses();
         databaseDataWorker.insertSampleNotes();
     }
 
-    private void createIndicies(SQLiteDatabase db) {
+    private void createIndices(SQLiteDatabase db) {
         db.execSQL(NotesDatabaseContract.CourseInfoEntry.CREATE_INDEX);
         db.execSQL(NotesDatabaseContract.NotesInfoEntry.CREATE_INDEX);
     }
@@ -34,7 +35,7 @@ public class NotepadOpenHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if(oldVersion < 2){
-            createIndicies(db);
+            createIndices(db);
         }
     }
 }

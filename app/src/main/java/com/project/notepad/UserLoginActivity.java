@@ -3,7 +3,9 @@ package com.project.notepad;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -34,15 +36,15 @@ public class UserLoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mUserAccount = UserAccount.getInstance(this);
 
+        mUserAccount = UserAccount.getInstance(this);
         mSignInView = getLayoutInflater().inflate(R.layout.activity_user_login,null);
         mSignedInView = getLayoutInflater().inflate(R.layout.user_logged_in,null);
+        Button signOutButton = mSignedInView.findViewById(R.id.sign_out_button);
+        SignInButton signInButton = mSignInView.findViewById(R.id.sign_in_button);
 
         setupGoogleSignIn();
 
-        Button signOutButton = mSignedInView.findViewById(R.id.sign_out_button);
-        SignInButton signInButton = mSignInView.findViewById(R.id.sign_in_button);
 
         if(isLoggedIn()) {
             setContentView(mSignedInView);
@@ -50,6 +52,7 @@ public class UserLoginActivity extends AppCompatActivity {
         }else {
             setContentView(mSignInView);
         }
+
         signInButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -59,12 +62,16 @@ public class UserLoginActivity extends AppCompatActivity {
         signOutButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mSignInClient.signOut();
-                mUserAccount.setAccount(null);
-                setContentView(mSignInView);
-                Toast.makeText(UserLoginActivity.this, "Logout Success", Toast.LENGTH_SHORT).show();
+                SignOutUser();
             }
         });
+    }
+
+    private void SignOutUser() {
+        mSignInClient.signOut();
+        mUserAccount.setAccount(null);
+        setContentView(mSignInView);
+        Toast.makeText(UserLoginActivity.this, "Logout Success", Toast.LENGTH_SHORT).show();
     }
 
     private void setupGoogleSignIn() {
@@ -79,9 +86,13 @@ public class UserLoginActivity extends AppCompatActivity {
         setContentView(mSignedInView);
         /*TODO: display user image*/
         ImageView imageView = findViewById(R.id.user_image_display);
-
         TextView userName = findViewById(R.id.user_name);
         TextView userEmail = findViewById(R.id.user_email);
+
+        final Uri photoUrl = mUserAccount.getAccount().getPhotoUrl();
+        if (photoUrl != null) {
+
+        }
 
         userName.setText(mUserAccount.getAccount().getDisplayName());
         userEmail.setText(mUserAccount.getAccount().getEmail());
@@ -118,5 +129,10 @@ public class UserLoginActivity extends AppCompatActivity {
             Log.d(TAG, "handleSignInResult: SignIn Failed");
             Toast.makeText(this, "Login Failed", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    public static Intent getIntent(Context context){
+        Intent signInIntent = new Intent(context,UserLoginActivity.class);
+        return  signInIntent;
     }
 }
