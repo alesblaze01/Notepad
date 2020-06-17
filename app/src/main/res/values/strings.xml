@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">NotePad</string>
+    <string name="app_name">Notepad</string>
     <string name="action_settings">Settings</string>
     <!-- Strings used for fragments for navigation -->
     <string name="next">Next</string>
@@ -42,4 +42,5 @@
     <string name="remind_me">Remind Me</string>
     <string name="send_mail">Send mail</string>
     <string name="set">Set</string>
+    <string name="not_set">Not Set</string>
 </resources>

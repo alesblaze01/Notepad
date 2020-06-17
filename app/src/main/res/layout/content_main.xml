@@ -24,7 +24,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 app:menu="@menu/menu_main"
-                app:navigationIcon="@drawable/abc_vector_test"></androidx.appcompat.widget.Toolbar>
+                app:navigationIcon="@drawable/abc_vector_test" />
 
         </com.google.android.material.appbar.AppBarLayout>
 
@@ -75,12 +75,13 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_marginStart="8dp"
-            android:layout_marginTop="8dp"
             android:layout_marginEnd="8dp"
             android:ems="10"
             android:gravity="start|top"
             android:hint="Enter Note Text"
-            android:inputType="textMultiLine" />
+            android:inputType="textMultiLine|textNoSuggestions"
+            android:visibility="visible" />
+
     </LinearLayout>
 
 

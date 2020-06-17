@@ -4,6 +4,12 @@
     tools:context="com.project.notepad.MainActivity">
 
     <item
+        android:id="@+id/backup_note_menu"
+        android:icon="@drawable/ic_backup_black_24dp"
+        android:title="Backup Notes"
+        android:visible="true"
+        app:showAsAction="ifRoom" />
+    <item
         android:id="@+id/action_send_mail"
         android:icon="@drawable/ic_email_black_24dp"
         android:orderInCategory="100"
@@ -36,5 +42,10 @@
         android:icon="@drawable/ic_timer_black_24dp"
         android:title="@string/remind_me"
         android:visible="true"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/save_pdf_menu"
+        android:icon="@drawable/ic_picture_as_pdf_black_24dp"
+        android:title="Save PDF "
         app:showAsAction="ifRoom" />
 </menu>

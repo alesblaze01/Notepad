@@ -14,6 +14,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.DrawableRequestBuilder;
+import com.bumptech.glide.Glide;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -45,7 +47,6 @@ public class UserLoginActivity extends AppCompatActivity {
 
         setupGoogleSignIn();
 
-
         if(isLoggedIn()) {
             setContentView(mSignedInView);
             updateUI();
@@ -53,18 +54,9 @@ public class UserLoginActivity extends AppCompatActivity {
             setContentView(mSignInView);
         }
 
-        signInButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startSignInFlow();
-            }
-        });
-        signOutButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                SignOutUser();
-            }
-        });
+        signInButton.setOnClickListener(v -> startSignInFlow());
+
+        signOutButton.setOnClickListener(v -> SignOutUser());
     }
 
     private void SignOutUser() {
@@ -84,14 +76,13 @@ public class UserLoginActivity extends AppCompatActivity {
 
     private void updateUI(){
         setContentView(mSignedInView);
-        /*TODO: display user image*/
         ImageView imageView = findViewById(R.id.user_image_display);
         TextView userName = findViewById(R.id.user_name);
         TextView userEmail = findViewById(R.id.user_email);
 
         final Uri photoUrl = mUserAccount.getAccount().getPhotoUrl();
         if (photoUrl != null) {
-
+            Glide.with(this).load(photoUrl).into(imageView);
         }
 
         userName.setText(mUserAccount.getAccount().getDisplayName());

@@ -129,7 +129,6 @@ public class NotepadContentProvider extends ContentProvider {
 
     private Cursor getNotesCourseJoinedCursor(String[] projection, String selection, String[] selectionArgs, String sortOrder) {
         final SQLiteDatabase database = mNotepadOpenHelper.getReadableDatabase();
-
         String[] columns = new String[projection.length];
         int index = 0;
         for(String col : projection) {

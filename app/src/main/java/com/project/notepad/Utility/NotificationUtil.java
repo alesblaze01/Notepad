@@ -20,7 +20,6 @@ public class NotificationUtil {
     public static void generateNotification(Context context, long noteId, String noteTitle , String noteText) {
         PendingIntent pendingIntent = getPendingIntent(context,noteId);
         NotificationCompat.Builder notificationBuilder = getNotificationBuild(context, noteTitle, noteText, pendingIntent);
-
         NotificationManagerCompat.from(context).notify(SHOW_NOTE,notificationBuilder.build());
     }
 

@@ -9,6 +9,12 @@ public final class NoteInfo implements Parcelable {
     private String mText;
     private int mId;
 
+    public NoteInfo(NoteInfo noteInfo){
+        this.mCourse = noteInfo.mCourse;
+        this.mTitle = noteInfo.mTitle;
+        this.mText = noteInfo.mText;
+        this.mId = noteInfo.mId;
+    }
     public int getId() {
         return mId;
     }
