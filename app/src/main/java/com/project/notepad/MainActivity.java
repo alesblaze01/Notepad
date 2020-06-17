@@ -15,6 +15,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -49,6 +51,7 @@ import com.project.notepad.Utility.UserAccount;
 
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Objects;
 
 import okhttp3.ResponseBody;
 import retrofit2.Call;
@@ -109,44 +112,7 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         InitGlobalVariable();
-        mToolbar = findViewById(R.id.toolbar2);
-        mToolbar.setNavigationOnClickListener(v -> {
-            onNavigateUp();
-        });
-        mToolbar.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.action_send_mail) {
-                final boolean isConnected = isConnectedToInternet();
-                if (!isConnected) {
-                    Toast.makeText(this, "Please Connect To Internet", Toast.LENGTH_LONG).show();
-                }else {
-                    AlertDialog dialog = getMailDialog();
-                    dialog.show();
-                }
-                return true;
-            } else if (id == R.id.action_cancel) {
-                mIsCancelling = true;
-                finish();
-            } else if (id == R.id.menu_item_delete_note) {
-                mIsCancelling = true;
-                deleteNote();
-                finish();
-            } else if (id == R.id.menu_reminder) {
-                setNoteReminder();
-                return true;
-            } else if (id == R.id.save_pdf_menu) {
-                String[] notesContent = collectNoteData();
-                OneTimeWorkRequest saveAsPDFWorkRequest = createNoteToPdfWorkRequest(notesContent);
-                final Operation result = WorkManager.getInstance(this).enqueue(saveAsPDFWorkRequest);
-                //TODO : show the result of pdf creation to user , if done or not
-                Log.d(TAG, "onCreate: Operation Completed of saving pdf");
-                return true;
-            } else if (id == R.id.backup_note_menu) {
-                makeNoteUploadApiCall();
-                return true;
-            }
-            return false;
-        });
+        getSupportActionBar().setTitle("Note");
 
         mEditTextNoteText.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) {
@@ -234,6 +200,48 @@ public class MainActivity extends AppCompatActivity
                 Toast.makeText(MainActivity.this, "Failed Uploading Notes", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main,menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_send_mail) {
+            final boolean isConnected = isConnectedToInternet();
+            if (!isConnected) {
+                Toast.makeText(this, "Please Connect To Internet", Toast.LENGTH_LONG).show();
+            }else {
+                AlertDialog dialog = getMailDialog();
+                dialog.show();
+            }
+            return true;
+        } else if (id == R.id.action_cancel) {
+            mIsCancelling = true;
+            finish();
+        } else if (id == R.id.menu_item_delete_note) {
+            mIsCancelling = true;
+            deleteNote();
+            finish();
+        } else if (id == R.id.menu_reminder) {
+            setNoteReminder();
+            return true;
+        } else if (id == R.id.save_pdf_menu) {
+            String[] notesContent = collectNoteData();
+            OneTimeWorkRequest saveAsPDFWorkRequest = createNoteToPdfWorkRequest(notesContent);
+            final Operation result = WorkManager.getInstance(this).enqueue(saveAsPDFWorkRequest);
+            //TODO : show the result of pdf creation to user , if done or not
+            Log.d(TAG, "onCreate: Operation Completed of saving pdf");
+            return true;
+        } else if (id == R.id.backup_note_menu) {
+            makeNoteUploadApiCall();
+            return true;
+        }
+        return false;
     }
 
     private RemoteNote getRemoteNote() {

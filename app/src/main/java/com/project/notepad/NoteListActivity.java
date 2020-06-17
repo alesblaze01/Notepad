@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -60,9 +62,7 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_note_list);
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
+        setupActionBar();
 //        GeneralUtility.StrictMode.enableStrictModeWithNetworkDetectionOnly();
         while (!isPermissionGranted()) {
             ActivityCompat.requestPermissions(this,new String[]{
@@ -71,7 +71,6 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
             },NoteListActivity.REQUEST_PERMISSIONS);
         }
-
 
         if (savedInstanceState != null) {
             mSavedInstanceState = savedInstanceState;
@@ -83,7 +82,6 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         if(mUserAccount.ifPreviouslyLogin()) {
             updateNavigationHeader();
         }
-        setUpDrawer(toolbar);
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
             Menu navMenu = mNavigationView.getMenu();
@@ -94,6 +92,20 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
             }
         });
         restartLoader();
+    }
+
+    private void setupActionBar() {
+        final ActionBar actionBar = getSupportActionBar();
+        ActionBarDrawerToggle actionBarDrawerToggle = new ActionBarDrawerToggle(
+                this,
+                findViewById(R.id.drawer_layout),
+                R.string.open_drawer,
+                R.string.close_drawer
+        );
+        actionBarDrawerToggle.syncState();
+        actionBar.setTitle("Notepad");
+        actionBar.setHomeButtonEnabled(true);
+        actionBar.setDisplayHomeAsUpEnabled(true);
     }
 
     private boolean isConnectedToInternet() {
@@ -112,12 +124,12 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         LoaderManager.getInstance(this).restartLoader(LOADER_COURSES, null, this);
     }
 
-    private void setUpDrawer(Toolbar toolbar) {
-        DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle actionBarDrawerToggle = new ActionBarDrawerToggle(this,drawerLayout,toolbar,R.string.open_navigation,R.string.close_navigation);
-        drawerLayout.addDrawerListener(actionBarDrawerToggle);
-        actionBarDrawerToggle.syncState();
-    }
+//    private void setUpDrawer(Toolbar toolbar) {
+//        DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
+//        ActionBarDrawerToggle actionBarDrawerToggle = new ActionBarDrawerToggle(this,drawerLayout,toolbar,R.string.open_navigation,R.string.close_navigation);
+//        drawerLayout.addDrawerListener(actionBarDrawerToggle);
+//        actionBarDrawerToggle.syncState();
+//    }
 
     private void initializeGlobalViews() {
         mRecyclerView = findViewById(R.id.list_notes);
@@ -244,13 +256,23 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
         if(id == R.id.note_list_settings){
+            return true;
         }else if (id == R.id.profile) {
             if (!isConnectedToInternet())
                 Toast.makeText(this, "Please connect to Internet First!", Toast.LENGTH_SHORT).show();
             else
                 startActivity(UserLoginActivity.getIntent(this));
+            return true;
+        }else if (id == android.R.id.home) {
+            DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
+            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                drawerLayout.closeDrawer(GravityCompat.START);
+            }else {
+                drawerLayout.openDrawer(GravityCompat.START);
+            }
+            return true;
         }
-        return super.onOptionsItemSelected(item);
+        return false;
     }
 
     @NonNull

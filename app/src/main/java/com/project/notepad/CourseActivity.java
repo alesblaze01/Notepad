@@ -17,6 +17,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
+import android.widget.Toolbar;
 
 import com.project.notepad.Contract.NoteContentContract;
 import com.project.notepad.Contract.NoteContentContract.Courses;
@@ -32,12 +33,12 @@ public class CourseActivity extends AppCompatActivity {
     private String mCourseTitle;
     private int mCourseDbId;
     private static final String TAG = "CourseActivity";
+    private Toolbar mToolbar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_course);
-
         mCourseIdEditView = findViewById(R.id.course_id);
         mCourseTitleEditView = findViewById(R.id.course_title);
 
