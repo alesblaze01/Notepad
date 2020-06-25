@@ -22,7 +22,6 @@ import com.project.notepad.Contract.NotesDatabaseContract.CourseInfoEntry;
 import com.project.notepad.Contract.NotesDatabaseContract.NotesInfoEntry;
 
 public class NotepadContentProvider extends ContentProvider {
-
     private static final String TAG = "NotepadContentProvider";
     private NotepadOpenHelper mNotepadOpenHelper;
     private static UriMatcher sUriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -31,15 +30,15 @@ public class NotepadContentProvider extends ContentProvider {
     public static final int NOTES_CODE = 1;
     public static final int NOTES_COURSE_JOINED_CODE = 2;
     private static final int NOTES_ROW_CODE = 3;
-
     public static final int COURSE_ROW_URI_CODE = 4;
+
 
     static {
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , Courses.PATH , COURSES_CODE);
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , Notes.PATH , NOTES_CODE);
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , NotesCourseJoined.PATH , NOTES_COURSE_JOINED_CODE);
         sUriMatcher.addURI( NoteContentContract.AUTHORITY , Notes.PATH +"/#", NOTES_ROW_CODE);
-        sUriMatcher.addURI( NoteContentContract.AUTHORITY , Courses.PATH+"/#" , COURSE_ROW_URI_CODE);
+        sUriMatcher.addURI( NoteContentContract.AUTHORITY , Courses.PATH +"/#" , COURSE_ROW_URI_CODE);
     }
     public NotepadContentProvider() {
     }
@@ -118,7 +117,7 @@ public class NotepadContentProvider extends ContentProvider {
             case NOTES_ROW_CODE:
                 long rowId = ContentUris.parseId(uri);
                 selection = NotesInfoEntry._ID+"=?";
-                selectionArgs = new String[]{Long.toString(rowId)};
+                selectionArgs = new String[]{String.valueOf(rowId)};
                 return db.query(
                         NotesInfoEntry.TABLE_NAME,projection,selection,selectionArgs,
                         null,null,null
@@ -127,6 +126,13 @@ public class NotepadContentProvider extends ContentProvider {
         return null;
     }
 
+    /**
+     * @param projection name of columns to be included into in view
+     * @param selection sets criteria for selection of row
+     * @param selectionArgs replacer for "?" in selection variable
+     * @param sortOrder sorts the cursor rows according to the order given
+     * @return returns a cursor over a joined table(notes + course table)
+     */
     private Cursor getNotesCourseJoinedCursor(String[] projection, String selection, String[] selectionArgs, String sortOrder) {
         final SQLiteDatabase database = mNotepadOpenHelper.getReadableDatabase();
         String[] columns = new String[projection.length];
@@ -166,7 +172,7 @@ public class NotepadContentProvider extends ContentProvider {
                 break;
             case NOTES_ROW_CODE :
                 long rowId = ContentUris.parseId(uri);
-                String noteWhere =NotesInfoEntry._ID+"=?";
+                String noteWhere = NotesInfoEntry._ID+"=?";
                 String[] noteWhereArgs = {String.valueOf(rowId)};
                 result = db.update(NotesInfoEntry.TABLE_NAME,values,noteWhere,noteWhereArgs);
                 break;

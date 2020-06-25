@@ -17,7 +17,7 @@ public class NoteReminderReceiver extends BroadcastReceiver {
         if (intent != null) {
             String noteTitle = intent.getStringExtra(NOTE_TITLE);
             String noteText = intent.getStringExtra(NOTE_TEXT);
-            long id = intent.getLongExtra(NOTE_ID,-1);
+            int id = intent.getIntExtra(NOTE_ID,-1);
             if (id == -1) {
                 Log.e(TAG, "onReceive: " + " Unable show Note As Note Id is Invalid" );
                 return;
@@ -25,7 +25,7 @@ public class NoteReminderReceiver extends BroadcastReceiver {
             NotificationUtil.generateNotification(context,id,noteTitle,noteText);
         }
     }
-    public static Intent getIntent(Context context , String noteText ,String noteTitle,long noteId){
+    public static Intent getIntent(Context context , String noteText ,String noteTitle,int noteId){
         Intent intent = new Intent(context,NoteReminderReceiver.class);
         intent.putExtra(NOTE_TEXT,noteText);
         intent.putExtra(NOTE_TITLE,noteTitle);

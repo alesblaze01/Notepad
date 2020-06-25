@@ -11,6 +11,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -50,7 +51,7 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     private LinearLayoutManager mLinearLayoutManager;
     private RecyclerView mRecyclerView;
     private CoursesRecyclerAdapter mCoursesRecyclerAdapter;
-    private GridLayoutManager mGridLayoutManager;
+//    private GridLayoutManager mGridLayoutManager;
     private NotepadOpenHelper mNotepadOpenHelper;
     private NavigationView mNavigationView;
     private UserAccount mUserAccount;
@@ -134,7 +135,7 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     private void initializeGlobalViews() {
         mRecyclerView = findViewById(R.id.list_notes);
         mLinearLayoutManager = new LinearLayoutManager(this);
-        mGridLayoutManager = new GridLayoutManager(this, 2);
+//        mGridLayoutManager = new GridLayoutManager(this, 2);
         mNotepadOpenHelper = new NotepadOpenHelper(this);
         mNavigationView = findViewById(R.id.nav_bar);
         mNavigationView.setNavigationItemSelectedListener(this);
@@ -173,14 +174,28 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
         if (mSavedInstanceState != null) {
             mSelectedNavMenuItemId = mSavedInstanceState.getInt(CHECKED_NAV_MENU_ITEM);
         }
+
+        if (mCourseCursor == null || mCourseCursor.getCount() == 0) {
+            mNavigationView.getMenu().findItem(R.id.nav_notes).setEnabled(false);
+            mNavigationView.getMenu().findItem(R.id.nav_courses).setChecked(true);
+        }else {
+            mNavigationView.getMenu().findItem(R.id.nav_notes).setEnabled(true);
+        }
     }
 
     @Override
     protected void onRestart(){
         restartLoader();
         updateNavigationHeader();
+        if (mCourseCursor == null || mCourseCursor.getCount() == 0) {
+            mNavigationView.getMenu().findItem(R.id.nav_notes).setEnabled(false);
+            mNavigationView.getMenu().findItem(R.id.nav_courses).setChecked(true);
+        }else {
+            mNavigationView.getMenu().findItem(R.id.nav_notes).setEnabled(true);
+        }
         super.onRestart();
     }
+
 
     @Override
     protected void onDestroy() {
@@ -288,6 +303,7 @@ public class NoteListActivity extends AppCompatActivity implements NavigationVie
     }
     Cursor mNoteCourseJoinedCursor = null;
     Cursor mCourseCursor = null;
+
     @Override
     public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
         int loaderId = loader.getId();

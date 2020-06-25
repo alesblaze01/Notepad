@@ -39,6 +39,7 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.Operation;
 import androidx.work.WorkManager;
 
+import com.project.notepad.Contract.NoteContentContract;
 import com.project.notepad.Contract.NoteContentContract.NotesCourseJoined;
 import com.project.notepad.Contract.NotepadOpenHelper;
 import com.project.notepad.Contract.NotesDatabaseContract.NotesInfoEntry;
@@ -78,9 +79,8 @@ public class MainActivity extends AppCompatActivity
     private Spinner mSpinner;
     private EditText mEditTextNoteTitle;
     private EditText mEditTextNoteText;
-    private long mNoteId;
+    private int mNoteId;
     private boolean mIsCancelling;
-    private NoteViewModel mNoteViewModel;
     private NotepadOpenHelper mNotepadOpenHelper;
     private int mNoteTitlePos;
     private int mNoteTextPos;
@@ -93,12 +93,78 @@ public class MainActivity extends AppCompatActivity
     private ProgressBar mProgressBar;
     private int noteTextChars = 0;
     private TextView mCharsInNoteText;
-    private Toolbar mToolbar;
+    private long mOriginalNoteId = -1;
+    private boolean mIsDuplicate = false;
 
     @Override
-    public void onSaveInstanceState(@NonNull Bundle outState, @NonNull PersistableBundle outPersistentState) {
-        super.onSaveInstanceState(outState, outPersistentState);
-        mNoteViewModel.saveState(outState);
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        InitGlobalVariable();
+        getSupportActionBar().setTitle("Note");
+        mEditTextNoteText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                noteTextChars = mEditTextNoteText.getText().length();
+                mCharsInNoteText.setText(String.valueOf(noteTextChars));
+            }
+        });
+
+        setUpSpinnerAndCourseCursor();
+
+
+        LoaderManager.getInstance(this).restartLoader(LOADER_COURSES, null, this);
+        readDisplayStateValues();
+        if (!mIsNewNote)
+            LoaderManager.getInstance(this).restartLoader(LOADER_NOTES, null, this);
+
+
+        mEditTextNoteTitle.setOnFocusChangeListener((v, hasFocus) -> {
+            //TODO: delegate this work to worker thread
+            if (!hasFocus) {
+                //can create a method for it
+                String noteTitle = mEditTextNoteTitle.getText().toString();
+                int courseId = mSpinner.getSelectedItemPosition();
+                final Cursor cursor =
+                        mSimpleCursorAdapter.getCursor();
+                cursor.moveToPosition(courseId);
+                String courseID = cursor.getString(cursor.getColumnIndex(Courses.COURSE_ID));
+                //-----------------------------
+
+
+                String[] projection = new String[]{
+                        NotesCourseJoined._ID,
+                        NotesCourseJoined.COURSE_ID,
+                        NotesCourseJoined.NOTE_TITLE
+                };
+                String selection = String
+                        .format("%s=? AND %s=?", NotesInfoEntry.getQualifiedName(Notes.COURSE_ID), NotesInfoEntry.getQualifiedName(Notes.NOTE_TITLE));
+                String[] selectionArgs = new String[]{
+                        courseID,
+                        noteTitle
+                };
+                final Cursor query = getContentResolver().query(
+                        NotesCourseJoined.CONTENT_URI,
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null
+                );
+                if (query.moveToFirst()) {
+                    mIsDuplicate = true;
+                    mOriginalNoteId = query.getInt(
+                            query.getColumnIndex(
+                                    NotesInfoEntry.getQualifiedName(NotesCourseJoined._ID)
+                            )
+                    );
+                } else {
+                    mOriginalNoteId = mNoteId;
+                    mIsDuplicate = false;
+                }
+                //when user exits with duplicate then delete note with mNoteId
+                //else normally save
+            }
+        });
+        //TODO : home menu button allows note to be saved without any title
     }
 
     @Override
@@ -107,67 +173,27 @@ public class MainActivity extends AppCompatActivity
         mProgressBar.setVisibility(View.INVISIBLE);
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        InitGlobalVariable();
-        getSupportActionBar().setTitle("Note");
-
-        mEditTextNoteText.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                noteTextChars = mEditTextNoteText.getText().length();
-                mCharsInNoteText.setText(String.valueOf(noteTextChars));
-            }
-        });
-
-        ViewModelProvider viewModelProvider = new ViewModelProvider(this.getViewModelStore(), ViewModelProvider.AndroidViewModelFactory.getInstance(getApplication()));
-        mNoteViewModel = viewModelProvider.get(NoteViewModel.class);
-
-        if (savedInstanceState != null && mNoteViewModel.mIsNew) {
-            mNoteViewModel.restoreState(savedInstanceState);
-        }
-
-        mNoteViewModel.mIsNew = false;
-        setUpSpinnerAndCourseCursor();
-        LoaderManager.getInstance(this).restartLoader(LOADER_COURSES, null, this);
-        readDisplayStateValues();
-        if (!mIsNewNote)
-            LoaderManager.getInstance(this).restartLoader(LOADER_NOTES, null, this);
-    }
-
     private AlertDialog getMailDialog() {
         return new AlertDialog.Builder(this)
                 .setTitle("Save Note")
-                .setNeutralButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                    }
-                })
-                .setPositiveButton("Save", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Toast.makeText(MainActivity.this, "Saved", Toast.LENGTH_SHORT).show();
-                        sendMail(null);
-                    }
+                .setNeutralButton("Cancel", (dialog, which) -> dialog.cancel())
+                .setPositiveButton("Save", (dialog, which) -> {
+//                    Toast.makeText(MainActivity.this, "Saved", Toast.LENGTH_SHORT).show();
+                    sendMail(null);
                 })
                 .setMessage("Do you want to save the changes?")
                 .setCancelable(true)
-                .setNegativeButton("Revert Back", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Toast.makeText(MainActivity.this, "Canceled", Toast.LENGTH_SHORT).show();
-                        mIsCancelling = true;
-                        sendMail(mPreviousNoteInfo);
-                    }
+                .setNegativeButton("Revert Back", (dialog, which) -> {
+//                    Toast.makeText(MainActivity.this, "Canceled", Toast.LENGTH_SHORT).show();
+                    mIsCancelling = true;
+                    sendMail(mPreviousNoteInfo);
                 })
                 .create();
     }
 
     private boolean isConnectedToInternet() {
         final ConnectivityManager connService = (ConnectivityManager) this.getSystemService(Context.CONNECTIVITY_SERVICE);
-        return connService.isDefaultNetworkActive();
+        return connService != null && connService.isDefaultNetworkActive();
     }
 
     @Override
@@ -175,6 +201,22 @@ public class MainActivity extends AppCompatActivity
         super.onRestart();
         LoaderManager.getInstance(this).restartLoader(LOADER_COURSES, null, this);
         LoaderManager.getInstance(this).restartLoader(LOADER_NOTES, null, this);
+    }
+
+    @Override
+    public void onBackPressed() {
+        //duplicate code same code present in onOptionsItemSelected
+        if (mEditTextNoteTitle != null && mEditTextNoteTitle.length() == 0) {
+            if(mEditTextNoteText != null && mEditTextNoteText.length() > 0){
+                Toast.makeText(this, "Set Some Title To Save Note", Toast.LENGTH_SHORT).show();
+                return;
+            }else {
+                mIsCancelling = true;
+                deleteNote();
+                finish();
+            }
+        }
+        super.onBackPressed();
     }
 
     private void makeNoteUploadApiCall() {
@@ -187,10 +229,11 @@ public class MainActivity extends AppCompatActivity
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                 System.out.println(call.request().body().toString());
                 assert response.body() != null;
-                if(response.isSuccessful()) {
+                if (response.isSuccessful()) {
                     Toast.makeText(MainActivity.this, "Note Uploaded to Cloud", Toast.LENGTH_SHORT).show();
-                }else {
-                    Toast.makeText(MainActivity.this, "Countered Some Error", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this, "Countered Some Error : " + response.code(), Toast.LENGTH_SHORT).show();
+                    Log.w(TAG, "onResponse: " + response.errorBody());
                 }
             }
 
@@ -204,7 +247,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main,menu);
+        getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
@@ -215,7 +258,7 @@ public class MainActivity extends AppCompatActivity
             final boolean isConnected = isConnectedToInternet();
             if (!isConnected) {
                 Toast.makeText(this, "Please Connect To Internet", Toast.LENGTH_LONG).show();
-            }else {
+            } else {
                 AlertDialog dialog = getMailDialog();
                 dialog.show();
             }
@@ -240,6 +283,19 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.backup_note_menu) {
             makeNoteUploadApiCall();
             return true;
+        }else if( id == android.R.id.home) {
+            if (mEditTextNoteTitle != null && mEditTextNoteTitle.length() == 0) {
+                if(mEditTextNoteText != null && mEditTextNoteText.length() > 0){
+                    Toast.makeText(this, "Set Some Title To Save Note", Toast.LENGTH_SHORT).show();
+                }else {
+                    mIsCancelling = true;
+                    deleteNote();
+                    finish();
+                }
+            }else {
+                finish();
+            }
+            return true;
         }
         return false;
     }
@@ -255,7 +311,7 @@ public class MainActivity extends AppCompatActivity
                 String courseTitle = noteCursor.getString(noteCursor.getColumnIndex(NotesCourseJoined.COURSE_TITLE));
                 note = new RemoteNote(courseTitle, email, noteTitle, noteText);
             }
-        }else {
+        } else {
             Toast.makeText(this, "You Must Login First", Toast.LENGTH_SHORT).show();
         }
         return note;
@@ -270,7 +326,7 @@ public class MainActivity extends AppCompatActivity
                 NotesCourseJoined._ID
         };
 
-        String selection = NotesInfoEntry.getQualifiedName(NotesCourseJoined._ID)+ "=?";
+        String selection = NotesInfoEntry.getQualifiedName(NotesCourseJoined._ID) + "=?";
         String[] selectionArgs = {String.valueOf(mNoteId)};
         noteCursor = getContentResolver().
                 query(NotesCourseJoined.CONTENT_URI, noteColumns, selection, selectionArgs, null);
@@ -322,11 +378,12 @@ public class MainActivity extends AppCompatActivity
         mCharsInNoteText = findViewById(R.id.chars_in_note_text);
     }
 
-    public static Intent getIntent(Context context , long noteId) {
+    public static Intent getIntent(Context context, int noteId) {
         Intent intent = new Intent(context, MainActivity.class);
-        intent.putExtra(NOTE_ID,noteId);
+        intent.putExtra(NOTE_ID, noteId);
         return intent;
     }
+
     /**
      * // need to change its documentation
      * get Position of selected item from mNoteInfo object.
@@ -344,9 +401,9 @@ public class MainActivity extends AppCompatActivity
 
         final Cursor cursor = mSimpleCursorAdapter.getCursor();
         final String courseTitle = cursor.getString(cursor.getColumnIndex(Courses.COURSE_TITLE));
-        CourseInfo courseInfo = new CourseInfo(courseId,courseTitle,null);
+        CourseInfo courseInfo = new CourseInfo(courseId, courseTitle, null);
         mPreviousNoteInfo =
-                new NoteInfo(courseInfo,mCursor.getString(mNoteTitlePos),mCursor.getString(mNoteTextPos));
+                new NoteInfo(courseInfo, mCursor.getString(mNoteTitlePos), mCursor.getString(mNoteTextPos));
 
         setCharacterCount();
     }
@@ -378,7 +435,7 @@ public class MainActivity extends AppCompatActivity
      */
     private void readDisplayStateValues() {
         Intent intent = getIntent();
-        mNoteId = intent.getLongExtra(NOTE_ID, ID_NOT_SET);
+        mNoteId = intent.getIntExtra(NOTE_ID, ID_NOT_SET);
         mIsNewNote = mNoteId == ID_NOT_SET;
         if (mIsNewNote) {
             createNewNote();
@@ -391,33 +448,29 @@ public class MainActivity extends AppCompatActivity
      */
 
     private void createNewNote() {
-        mToolbar.getMenu().findItem(R.id.action_cancel).setVisible(false);
         ContentValues values = new ContentValues();
         values.put(Notes.NOTE_TITLE, "");
         values.put(Notes.NOTE_TEXT, "");
         values.put(Notes.COURSE_ID, "");
 
-        mPreviousNoteInfo = new NoteInfo(null,"","");
+        mPreviousNoteInfo = new NoteInfo(null, "", "");
         mRowUri = null;
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                mRowUri = getContentResolver().insert(Notes.CONTENT_URI, values);
-                if (mRowUri != null) {
-                    mNoteId = (int) ContentUris.parseId(mRowUri);
-                    Log.d(TAG, "createNewNote: mNoteId init successfully");
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this
-                                , "Note Created", Toast.LENGTH_SHORT).show();
-                    });
-                } else {
-                    mNoteId = -1;
-                    Log.d(TAG, "createNewNote: mNoteId init Failure");
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this
-                                , "Error Creating Note", Toast.LENGTH_SHORT).show();
-                    });
-                }
+        Runnable runnable = () -> {
+            mRowUri = getContentResolver().insert(Notes.CONTENT_URI, values);
+            if (mRowUri != null) {
+                mNoteId = (int) ContentUris.parseId(mRowUri);
+                Log.d(TAG, "createNewNote: mNoteId init successfully");
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this
+                            , "Note Created", Toast.LENGTH_SHORT).show();
+                });
+            } else {
+                mNoteId = -1;
+                Log.d(TAG, "createNewNote: mNoteId init Failure");
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this
+                            , "Error Creating Note", Toast.LENGTH_SHORT).show();
+                });
             }
         };
         delegateWorkToWorkerThread(runnable);
@@ -446,7 +499,7 @@ public class MainActivity extends AppCompatActivity
         Intent intent = NoteReminderReceiver.getIntent(this, noteText, noteTitle, mNoteId);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 this, NOTE_REMINDER_REQUEST_CODE, intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT);
+                PendingIntent.FLAG_UPDATE_CURRENT);
         final AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         if (alarmManager != null) {
             alarmManager.setExact(AlarmManager.RTC, triggerTime, pendingIntent);
@@ -456,12 +509,39 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+
     @Override
     protected void onPause() {
         super.onPause();
-        if (!mIsCancelling) {
+        if (!mIsCancelling && !mIsDuplicate) {
             saveNote();
+        } else if (mIsDuplicate) {
+            mergeNotes();
         }
+    }
+
+    private void mergeNotes() {
+        delegateWorkToWorkerThread(() -> {
+            final Cursor query = getContentResolver().
+                    query(ContentUris.withAppendedId(Notes.CONTENT_URI, mOriginalNoteId),
+                            new String[]{Notes.NOTE_TEXT}, null,
+                            null, null);
+            String textToSave = "";
+            if (query != null && query.moveToNext()){
+                textToSave += query.getString(query.getColumnIndex(Notes.NOTE_TEXT));
+                textToSave += "\n";
+                textToSave += mEditTextNoteText.getText().toString();
+            }
+            ContentValues values = new ContentValues();
+            values.put(Notes.NOTE_TEXT,textToSave);
+
+            final Uri uri1 = ContentUris.withAppendedId(Notes.CONTENT_URI, mOriginalNoteId);
+            final int update = getContentResolver().update(uri1, values, null,null);
+            if (update == 1) {
+                Log.d(TAG, "onPause: Note Merged");
+            }
+
+        });
     }
 
     /**
@@ -501,21 +581,8 @@ public class MainActivity extends AppCompatActivity
         delegateWorkToWorkerThread(runnable);
     }
 
-    /**
-     * saves Note to database using ContentResolver
-     * Logs the result of updation
-     */
-    private void exitAfterSavingNote() {
-        saveNote();
-        finish();
-    }
     private void saveNote() {
-        int coursePosition = mSpinner.getSelectedItemPosition();
-        Cursor cursor = mSimpleCursorAdapter.getCursor();
-        cursor.moveToPosition(coursePosition);
-        int courseIdPos = cursor.getColumnIndex(Notes.COURSE_ID);
-        String courseId = cursor.getString(courseIdPos);
-
+        String courseId = getCourseIdFromSpinner();
         ContentValues values = new ContentValues();
         values.put(NotesCourseJoined.COURSE_ID, courseId);
         values.put(NotesCourseJoined.NOTE_TITLE, mEditTextNoteTitle.getText().toString());
@@ -541,6 +608,14 @@ public class MainActivity extends AppCompatActivity
         delegateWorkToWorkerThread(runnable);
     }
 
+    private String getCourseIdFromSpinner() {
+        int coursePosition = mSpinner.getSelectedItemPosition();
+        Cursor cursor = mSimpleCursorAdapter.getCursor();
+        cursor.moveToPosition(coursePosition);
+        int courseIdPos = cursor.getColumnIndex(Notes.COURSE_ID);
+        return cursor.getString(courseIdPos);
+    }
+
     private void delegateWorkToWorkerThread(Runnable runnable) {
         Thread thread = new Thread(runnable);
         thread.setPriority(Thread.MAX_PRIORITY);
@@ -555,6 +630,7 @@ public class MainActivity extends AppCompatActivity
      * sends a mail to the user
      * gets the content from the View in MainActivity
      * sets up an implicit intent and starts the activity
+     *
      * @param noteInfo
      */
     private void sendMail(NoteInfo noteInfo) {
@@ -563,7 +639,7 @@ public class MainActivity extends AppCompatActivity
         if (noteInfo != null) {
             noteTitle = noteInfo.getTitle();
             noteText = noteInfo.getCourse().getTitle() + "\n" + noteInfo.getText();
-        }else {
+        } else {
             final Cursor cursor = mSimpleCursorAdapter.getCursor();
             cursor.moveToPosition(mSpinner.getSelectedItemPosition());
             String courseTitle = cursor.getString(cursor.getColumnIndex(Courses.COURSE_TITLE));

@@ -17,13 +17,13 @@ public class NotificationUtil {
 
     public static final String NOTIFICATION_CHANNEL_1 = "Channel1";
 
-    public static void generateNotification(Context context, long noteId, String noteTitle , String noteText) {
+    public static void generateNotification(Context context, int noteId, String noteTitle , String noteText) {
         PendingIntent pendingIntent = getPendingIntent(context,noteId);
         NotificationCompat.Builder notificationBuilder = getNotificationBuild(context, noteTitle, noteText, pendingIntent);
         NotificationManagerCompat.from(context).notify(SHOW_NOTE,notificationBuilder.build());
     }
 
-    private static PendingIntent getPendingIntent(Context context,long noteId) {
+    private static PendingIntent getPendingIntent(Context context,int noteId) {
         Intent intent = new Intent(context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(NOTE_ID,noteId);
