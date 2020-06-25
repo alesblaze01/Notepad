@@ -18,6 +18,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.SimpleCursorAdapter;
@@ -117,7 +118,54 @@ public class MainActivity extends AppCompatActivity
         if (!mIsNewNote)
             LoaderManager.getInstance(this).restartLoader(LOADER_NOTES, null, this);
 
+        mSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String noteTitle = mEditTextNoteTitle.getText().toString();
+                int courseId = mSpinner.getSelectedItemPosition();
+                final Cursor cursor =
+                        mSimpleCursorAdapter.getCursor();
+                cursor.moveToPosition(courseId);
+                String courseID = cursor.getString(cursor.getColumnIndex(Courses.COURSE_ID));
+                //-----------------------------
 
+
+                String[] projection = new String[]{
+                        NotesCourseJoined._ID,
+                        NotesCourseJoined.COURSE_ID,
+                        NotesCourseJoined.NOTE_TITLE
+                };
+                String selection = String
+                        .format("%s=? AND %s=?", NotesInfoEntry.getQualifiedName(Notes.COURSE_ID), NotesInfoEntry.getQualifiedName(Notes.NOTE_TITLE));
+                String[] selectionArgs = new String[]{
+                        courseID,
+                        noteTitle
+                };
+                final Cursor query = getContentResolver().query(
+                        NotesCourseJoined.CONTENT_URI,
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null
+                );
+                if (query.moveToFirst()) {
+                    mIsDuplicate = true;
+                    mOriginalNoteId = query.getInt(
+                            query.getColumnIndex(
+                                    NotesInfoEntry.getQualifiedName(NotesCourseJoined._ID)
+                            )
+                    );
+                } else {
+                    mOriginalNoteId = mNoteId;
+                    mIsDuplicate = false;
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
         mEditTextNoteTitle.setOnFocusChangeListener((v, hasFocus) -> {
             //TODO: delegate this work to worker thread
             if (!hasFocus) {

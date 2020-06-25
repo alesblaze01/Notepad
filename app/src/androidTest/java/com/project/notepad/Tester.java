@@ -8,6 +8,8 @@ import androidx.test.espresso.Espresso;
 import androidx.test.espresso.NoMatchingViewException;
 import androidx.test.espresso.ViewInteraction;
 import androidx.test.espresso.action.ViewActions;
+import androidx.test.espresso.assertion.ViewAssertions;
+import androidx.test.espresso.base.DefaultFailureHandler;
 import androidx.test.espresso.matcher.ViewMatchers;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
@@ -20,7 +22,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import static androidx.test.espresso.Espresso.closeSoftKeyboard;
 import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.Espresso.pressBack;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
@@ -46,6 +50,19 @@ public class Tester {
     }
 
     @Test
+    public void deleteNoteWhenNoTitleAndText() {
+        Espresso.onView(ViewMatchers.withId(R.id.fab)).perform(ViewActions.click());
+        closeSoftKeyboard();
+        pressBack();
+        try {
+            onView(withId(R.id.list_notes)).check(ViewAssertions.matches(ViewMatchers.withText("")));
+        }catch(Error ex){
+            return;
+        }
+        throw new IllegalStateException("Note with no title exists");
+    }
+
+    @Test
     public void deleteNoteWhenDuplicate(){
         deleteNote();
         createNote();
@@ -61,7 +78,7 @@ public class Tester {
 
     private void deleteNote() {
         try {
-            Espresso.onView(ViewMatchers.withText(mNoteTitle)).perform(ViewActions.click()).check(doesNotExist());
+            Espresso.onView(ViewMatchers.withText(mNoteTitle)).perform(ViewActions.click());
         }catch (NoMatchingViewException exception) {
             return;
         }
